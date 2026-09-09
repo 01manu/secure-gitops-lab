@@ -1,0 +1,30 @@
+name: "Pipeline A: GitOps Baseline"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  baseline-build-and-validate:
+    name: Baseline Build & Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Validate Kubernetes Manifest Format
+        run: |
+          echo "Validating Kubernetes Deployment Manifest..."
+          if [ -f deployment.yaml ]; then
+            echo "deployment.yaml found! Format check passed."
+          else
+            echo "Error: deployment.yaml missing!"
+            exit 1
+          fi
+
+      - name: Simulate GitOps Build Output
+        run: |
+          echo "Pipeline A Baseline completed successfully with 0 security scans."

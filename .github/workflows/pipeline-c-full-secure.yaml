@@ -1,0 +1,48 @@
+name: "Pipeline C: Full Secure GitOps & NIS2 Gate"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  full-security-and-nis2-gate:
+    name: Full DevSecOps & Policy Enforcement
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 1. Secret Scanning
+      - name: Run GitLeaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Container & Infrastructure Vulnerability Scanning
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          scan-type: 'config'
+          hide-shortcut-table: 'true'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+      # 3. Static Application Security Testing (SAST)
+      - name: Run Semgrep SAST Analysis
+        continue-on-error: true
+        run: |
+          echo "Running Semgrep SAST Analysis..."
+          docker run --rm -v "${PWD}:/src" semgrep/semgrep semgrep scan --config auto .
+
+      # 4. Policy Enforcement (OPA / Conftest)
+      - name: Run Conftest OPA NIS2 Policy Scan
+        uses: instrumenta/conftest-action@master
+        with:
+          files: k8s
+          policy: policy

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-web-app
+  labels:
+    app: sample-web-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample-web-app
+  template:
+    metadata:
+      labels:
+        app: sample-web-app
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25.3
+        ports:
+        - containerPort: 80

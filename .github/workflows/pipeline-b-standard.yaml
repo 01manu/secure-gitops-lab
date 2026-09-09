@@ -1,0 +1,31 @@
+name: "Pipeline B: Standard DevSecOps"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  standard-sec-scan:
+    name: GitLeaks & Trivy Security Scans
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run GitLeaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Trivy Config Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          hide-shortcut-table: 'true'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
