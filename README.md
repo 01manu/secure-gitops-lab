@@ -21,28 +21,20 @@ The lab uses the following components:
 
 The intended flow is:
 
-```text
-Developer Commit
-      |
-      v
-GitHub Repository
-      |
-      v
-GitHub Actions
-      |
-      +--> GitLeaks
-      +--> Trivy
-      +--> Semgrep
-      +--> OPA / Conftest
-      |
-      v
-Approved Git State
-      |
-      v
-Argo CD
-      |
-      v
-K3s Kubernetes Cluster
+```mermaid
+flowchart TD
+    A[Developer Commit] --> B[GitHub Repository]
+    B --> C[GitHub Actions]
+    C --> D[GitLeaks]
+    C --> E[Trivy]
+    C --> F[Semgrep]
+    C --> G[OPA / Conftest]
+    D --> H[Approved Git State]
+    E --> H
+    F --> H
+    G --> H
+    H --> I[Argo CD]
+    I --> J[K3s Kubernetes Cluster]
 ```
 
 ## Repository Structure
