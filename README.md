@@ -109,21 +109,69 @@ The policy is stored in:
 policy/nis2_compliance.rego
 ```
 
-The uploaded implementation enforces three Kubernetes deployment rules:
+The implementation enforces three Kubernetes deployment rules mapped to NIS2 Article 21 technical requirements:
 
 1. **Privileged containers are prohibited.**
 2. **Deployments must explicitly set `securityContext.runAsNonRoot: true`.**
 3. **Container images must not use the mutable `:latest` tag.**
 
-The current `k8s/bad-deployment.yaml` is the **remediated version** and satisfies these checks:
+---
+
+### Manifest Files
+
+Two Kubernetes manifest files are provided in the `k8s/` directory to support the controlled experiment:
+
+#### bad-deployment-original.yaml — Non-Compliant (Experiment Input)
+
+This is the intentionally non-compliant manifest used as the controlled vulnerability input during the experiment. It violates all three OPA/Conftest rules and causes Pipeline C to fail at the Conftest policy gate:
+
+| Rule | Setting | Violation |
+|---|---|---|
+| Rule 1 — No privileged containers | `privileged: true` |  Fails |
+| Rule 2 — Must run as non-root | `runAsNonRoot` not set |  Fails |
+| Rule 3 — No mutable image tags | `image: nginx:latest` |  Fails |
+
+```yaml
+# Intentionally non-compliant — for experiment use only
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: non-compliant-workload
+  labels:
+    app: myapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: app
+        image: nginx:latest
+        securityContext:
+          privileged: true
+          allowPrivilegeEscalation: true
+```
+
+#### bad-deployment.yaml — Remediated (Secure State)
+
+This is the remediated version produced after applying the required security fixes. It passes all three OPA rules and represents the secure desired state that ArgoCD synchronises to the K3s cluster:
+
+| Rule | Setting | Result |
+|---|---|---|
+| Rule 1 — No privileged containers | `privileged: false` | Passes |
+| Rule 2 — Must run as non-root | `runAsNonRoot: true` | Passes |
+| Rule 3 — No mutable image tags | `image: nginx:1.25.3` | Passes |
 
 ```yaml
 securityContext:
   runAsNonRoot: true
   runAsUser: 10001
 ```
-
-The container also uses:
 
 ```yaml
 image: nginx:1.25.3
@@ -132,13 +180,43 @@ securityContext:
   allowPrivilegeEscalation: false
 ```
 
-To validate the Kubernetes manifests locally with Conftest:
+---
+
+### Running the Policy Validation
+
+To validate both manifests locally with Conftest:
 
 ```bash
+# Test the non-compliant manifest — expect 3 violations
+conftest test k8s/bad-deployment-original.yaml --policy policy
+
+# Test the remediated manifest — expect 0 violations
+conftest test k8s/bad-deployment.yaml --policy policy
+
+# Test the entire k8s directory
 conftest test k8s --policy policy
 ```
 
-A policy violation returns a failed Conftest result and prevents the strict pipeline from passing the final policy gate.
+Expected output for the non-compliant manifest:
+
+```text
+FAIL - k8s/bad-deployment-original.yaml - main - NIS2 violation: 
+       Container must not run in privileged mode
+FAIL - k8s/bad-deployment-original.yaml - main - NIS2 violation: 
+       Container must not run as root user
+FAIL - k8s/bad-deployment-original.yaml - main - NIS2 violation: 
+       Container image must use a specific version tag
+
+3 tests, 0 passed, 0 warnings, 3 failures
+```
+
+Expected output for the remediated manifest:
+
+```text
+1 test, 1 passed, 0 warnings, 0 failures
+```
+
+A policy violation returns a non-zero exit code and prevents Pipeline C from passing the final Conftest policy gate, blocking ArgoCD synchronisation of the non-compliant state.
 
 ## Lab Environment
 
